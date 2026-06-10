@@ -168,11 +168,20 @@ async function carregarEstado() {
   atualizarDashboard();
 }
 
+function migrarPagamentos(p) {
+  if (!p) return {};
+  const n = { ...p };
+  if (n.maquininha_debito !== undefined)  { n.debito      = n.debito      || n.maquininha_debito;  delete n.maquininha_debito; }
+  if (n.maquininha_credito !== undefined) { n.credito     = n.credito     || n.maquininha_credito; delete n.maquininha_credito; }
+  if (n.maquininha_sicredi !== undefined) { n.maquininha  = n.maquininha  || n.maquininha_sicredi; delete n.maquininha_sicredi; }
+  return n;
+}
+
 function aplicarEstado(data) {
   caixa = data?.caixa || null;
   saidas = data?.saidas || data?.saídas || [];
   vales = data?.vales || [];
-  totaisEntradas = data?.totaisEntradas || {};
+  totaisEntradas = migrarPagamentos(data?.totaisEntradas || {});
   if (caixa?.turno) turnoAtual = caixa.turno;
 }
 
@@ -553,7 +562,7 @@ function atualizarDashboard() {
     if (caixa && (caixa.idOriginal === item.id || caixa.id === item.id)) return;
     const mes = getMesFechamento(item);
     if (mes !== mesAtual) return;
-    const p = item.porPagamento || {};
+    const p = migrarPagamentos(item.porPagamento || {});
     vendasMes += item.vendaBruta || 0;
     recebidoMes += (p.pix || 0) + (p.debito || 0) + (p.credito || 0) + (p.maquininha || 0);
     retiradasMes += (item.retiradas || 0) + (item.sangrias || 0) + (item.retiradaFinal || 0);
@@ -616,7 +625,7 @@ function calcularPagamentosDashboard() {
     if (caixa && (caixa.idOriginal === item.id || caixa.id === item.id)) return;
     const mes = item.dataISO ? item.dataISO.slice(0, 7) : "";
     if (mes !== mesAtual) return;
-    const p = item.porPagamento || {};
+    const p = migrarPagamentos(item.porPagamento || {});
     totais.dinheiro += p.dinheiro || 0;
     totais.pix += p.pix || 0;
     totais.debito += p.debito || 0;
@@ -994,7 +1003,7 @@ function reabrirFechamento(id) {
   turnoAtual = caixa.turno;
   saidas = [...(item.listaSaidas || [])];
   vales = [...(item.listaVales || [])];
-  totaisEntradas = { ...(item.porPagamento || {}) };
+  totaisEntradas = migrarPagamentos(item.porPagamento || {});
   saidaEditandoId = null;
   valeEditandoId = null;
 
@@ -1069,7 +1078,7 @@ function imprimirHistorico(id) {
 }
 
 function imprimirRelatorio(data) {
-  const p = data.porPagamento || {};
+  const p = migrarPagamentos(data.porPagamento || {});
   qs("print-content").innerHTML = `
     <div class="print-header"><div class="print-title">FECHAMENTO DE CAIXA</div><div class="print-sub">Data: ${escapeHTML(data.data)} - Turno: ${data.turno === "manha" ? "Manha" : "Tarde"} - Operador: ${escapeHTML(data.operador || "-")}</div></div>
     <hr class="print-divider" />
@@ -1177,7 +1186,7 @@ function imprimirRelatorioSangriasVales() {
 function enviarWhatsApp(id) {
   const item = historico.find(h => h.id === id);
   if (!item) return;
-  const p = item.porPagamento || {};
+  const p = migrarPagamentos(item.porPagamento || {});
   const listaSaidas = item.listaSaidas || [];
   const sangrias = listaSaidas.filter(saida => saida.categoria === "sangria");
   const retiradas = listaSaidas.filter(saida => saida.categoria === "retirada");
