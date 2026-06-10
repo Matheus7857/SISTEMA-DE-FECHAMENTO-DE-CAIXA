@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Vortek — Controle de Caixa</title>
+  <meta name="description" content="Vortek: sistema de controle de caixa com turnos, movimentos, vales e histórico." />
+  <meta name="theme-color" content="#161b27" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Vortek" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Firebase Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <!-- ══ LOGIN OVERLAY ══ -->
+  <div id="login-screen" class="login-overlay">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="brand-icon" style="width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,#3b82f6,#a855f7);display:grid;place-items:center;margin:0 auto 1.25rem;">
+          <svg width="36" height="36" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        </div>
+        <div style="font-size:1.6rem;font-weight:800;letter-spacing:-1px;color:var(--text);margin-bottom:.25rem;">Vortek</div>
+        <div style="font-size:.8rem;color:var(--text3);margin-bottom:1.75rem;">Controle de Caixa</div>
+      </div>
+
+      <div class="form-group">
+        <label for="login-email">E-mail</label>
+        <input id="login-email" type="email" class="text-input" placeholder="seu@email.com" autocomplete="email" inputmode="email" />
+      </div>
+      <div class="form-group">
+        <label for="login-password">Senha</label>
+        <input id="login-password" type="password" class="text-input" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') fazerLogin()" />
+      </div>
+
+      <div id="login-error" style="display:none;color:var(--red);font-size:.85rem;margin-bottom:1rem;padding:.75rem;background:var(--red-bg);border-radius:8px;border:1px solid var(--red);text-align:left;"></div>
+      <div id="login-info" style="display:none;color:var(--green);font-size:.85rem;margin-bottom:1rem;padding:.75rem;background:var(--green-bg);border-radius:8px;border:1px solid var(--green);text-align:left;"></div>
+
+      <button id="btn-login" class="btn btn-primary btn-full" onclick="fazerLogin()">Entrar</button>
+      <button id="btn-link-login" class="btn btn-outline btn-full" onclick="enviarLinkLogin()" style="margin-top:.5rem;font-size:.84rem;">Entrar sem senha</button>
+
+      <div style="display:flex;gap:.75rem;margin-top:.75rem;">
+        <button class="btn btn-outline btn-full" onclick="loginGoogle()" style="gap:.5rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Google
+        </button>
+        <button class="btn btn-outline btn-full" onclick="criarContaEmail()" style="font-size:.8rem;">Criar conta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+      </div>
+      <div>
+        <span class="brand-name">Vortek</span>
+        <span class="brand-sub">Controle de Caixa</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a id="nav-dashboard" class="nav-item active" href="#" onclick="showView('dashboard');return false;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a id="nav-abertura" class="nav-item" href="#" onclick="showView('abertura');return false;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Abertura
+      </a>
+      <a id="nav-movimentos" class="nav-item" href="#" onclick="showView('movimentos');return false;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        Movimentos
+      </a>
+      <a id="nav-fechamento" class="nav-item" href="#" onclick="showView('fechamento');return false;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Fechar Caixa
+      </a>
+      <a id="nav-historico" class="nav-item" href="#" onclick="showView('historico');return false;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Histórico
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="current-date" id="sidebar-date"></div>
+      <div class="current-time" id="sidebar-time"></div>
+      <div style="margin-top:.85rem;font-size:.78rem;color:var(--text3)" id="usuario-logado"></div>
+      <button class="btn btn-outline btn-sm" style="margin-top:.5rem;width:100%;" onclick="sair()">Sair</button>
+    </div>
+  </aside>
+
+  <!-- Backdrop para fechar sidebar no mobile -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+  <!-- ══ MAIN ══ -->
+  <div class="main-content">
+
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Menu">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <span class="page-title" id="page-title">Dashboard</span>
+      </div>
+      <div class="top-bar-right" style="display:flex;align-items:center;gap:.75rem;">
+        <div class="caixa-status">
+          <span class="status-dot closed"></span>
+          <span id="status-text">Caixa Fechado</span>
+        </div>
+        <!-- Notificações -->
+        <div style="position:relative;">
+          <button id="btn-notificacoes" class="btn btn-outline btn-sm" onclick="toggleNotificacoes()" style="position:relative;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span id="notif-badge" class="notif-badge" style="display:none;">0</span>
+          </button>
+          <div id="notif-panel" class="notif-panel">
+            <div class="notif-header">
+              <span style="font-weight:700;font-size:.9rem;">Notificações</span>
+              <button class="btn btn-outline btn-sm" onclick="limparNotificacoes()">Limpar</button>
+            </div>
+            <div id="notif-list" class="notif-list"></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ══ VIEW: DASHBOARD ══ -->
+    <section id="view-dashboard" class="view active">
+
+      <!-- Stat cards -->
+      <div class="cards-grid">
+        <div class="stat-card green">
+          <div class="stat-icon">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          </div>
+          <div>
+            <span class="stat-label">Entradas do caixa</span>
+            <span class="stat-value" id="resumo-total-entradas">R$ 0,00</span>
+          </div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-icon">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+          </div>
+          <div>
+            <span class="stat-label">Saídas / Sangrias</span>
+            <span class="stat-value" id="resumo-total-saidas">R$ 0,00</span>
+          </div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+          </div>
+          <div>
+            <span class="stat-label">Saldo em caixa</span>
+            <span class="stat-value" id="resumo-saldo">R$ 0,00</span>
+          </div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div>
+            <span class="stat-label">Vales de funcionários</span>
+            <span class="stat-value" id="resumo-total-vales">R$ 0,00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfico de vendas -->
+      <div class="card dashboard-chart-card">
+        <div class="card-header">
+          <h2>Vendas — últimos 15 dias</h2>
+        </div>
+        <div id="sales-chart" class="sales-chart"></div>
+      </div>
+
+      <!-- Formas de pagamento + movimentos recentes -->
+      <div class="section-grid">
+        <div class="card">
+          <div class="card-header">
+            <h2>Formas de pagamento (mês)</h2>
+          </div>
+          <div class="payment-breakdown">
+            <div class="payment-row">
+              <span class="payment-method"><span class="method-dot dinheiro"></span>Dinheiro</span>
+              <span class="payment-value" id="pb-dinheiro">R$ 0,00</span>
+            </div>
+            <div class="payment-row">
+              <span class="payment-method"><span class="method-dot pix"></span>PIX</span>
+              <span class="payment-value" id="pb-pix">R$ 0,00</span>
+            </div>
+            <div class="payment-row">
+              <span class="payment-method"><span class="method-dot debito"></span>Débito</span>
+              <span class="payment-value" id="pb-maquininha_debito">R$ 0,00</span>
+            </div>
+            <div class="payment-row">
+              <span class="payment-method"><span class="method-dot credito"></span>Crédito</span>
+              <span class="payment-value" id="pb-maquininha_credito">R$ 0,00</span>
+            </div>
+            <div class="payment-row">
+              <span class="payment-method"><span class="method-dot vale"></span>Vales funcionários</span>
+              <span class="payment-value" id="pb-vale_funcionario">R$ 0,00</span>
+            </div>
+            <div class="payment-row">
+              <span class="payment-method"><span class="method-dot sangria"></span>Sangrias / Saídas</span>
+              <span class="payment-value" id="pb-sangrias">R$ 0,00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Movimentos recentes</h2>
+          </div>
+          <div id="recent-movements" class="recent-movements"></div>
+        </div>
+      </div>
+
+      <!-- Totais do mês -->
+      <div class="cards-grid" style="margin-top:1rem;">
+        <div class="stat-card green">
+          <div class="stat-icon">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div>
+            <span class="stat-label">Vendas do mês</span>
+            <span class="stat-value" id="dash-mes-vendas">R$ 0,00</span>
+          </div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          </div>
+          <div>
+            <span class="stat-label">Recebido (cartões/pix)</span>
+            <span class="stat-value" id="dash-mes-recebido">R$ 0,00</span>
+          </div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-icon">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <div>
+            <span class="stat-label">Retiradas do mês</span>
+            <span class="stat-value" id="dash-mes-retiradas">R$ 0,00</span>
+          </div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          </div>
+          <div>
+            <span class="stat-label">Gastos do mês</span>
+            <span class="stat-value" id="dash-mes-gastos">R$ 0,00</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ══ VIEW: ABERTURA ══ -->
+    <section id="view-abertura" class="view">
+      <div class="center-card">
+        <div class="card opening-card">
+          <div class="opening-icon">
+            <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+          </div>
+          <h2>Abertura de Caixa</h2>
+          <p class="opening-sub">Preencha os dados para abrir o turno</p>
+
+          <div class="form-group">
+            <label>Turno</label>
+            <div class="turno-selector">
+              <button id="turno-manha" class="turno-btn active" onclick="setTurno('manha')">☀️ Manhã</button>
+              <button id="turno-tarde" class="turno-btn" onclick="setTurno('tarde')">🌙 Tarde</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="data-abertura">Data de abertura</label>
+            <input id="data-abertura" type="date" class="text-input" />
+          </div>
+
+          <div class="form-group">
+            <label for="operador-nome">Nome do operador</label>
+            <input id="operador-nome" type="text" class="text-input" placeholder="Ex.: João Silva" autocomplete="off" />
+          </div>
+
+          <div class="form-group">
+            <label for="saldo-inicial">Saldo inicial (troco)</label>
+            <div class="input-currency">
+              <span>R$</span>
+              <input id="saldo-inicial" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="obs-abertura">Observações</label>
+            <textarea id="obs-abertura" class="textarea-input" placeholder="Observações opcionais..."></textarea>
+          </div>
+
+          <button id="btn-abrir-caixa" class="btn btn-primary btn-full" onclick="abrirCaixa()">Abrir Caixa</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ VIEW: MOVIMENTOS ══ -->
+    <section id="view-movimentos" class="view">
+      <div class="movimentos-layout">
+
+        <!-- Formulário lateral -->
+        <div class="form-card">
+
+          <!-- Entradas -->
+          <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header"><h2>Entradas</h2></div>
+
+            <div id="venda-bruta-container" class="form-group" style="display:none;">
+              <label for="venda-bruta">Venda bruta (sistema)</label>
+              <div class="input-currency">
+                <span>R$</span>
+                <input id="venda-bruta" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="total-dinheiro">Dinheiro em caixa</label>
+              <div class="input-currency">
+                <span>R$</span>
+                <input id="total-dinheiro" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="total-pix">PIX</label>
+              <div class="input-currency">
+                <span>R$</span>
+                <input id="total-pix" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="total-maquininha_debito">Débito</label>
+              <div class="input-currency">
+                <span>R$</span>
+                <input id="total-maquininha_debito" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="total-maquininha_credito">Crédito</label>
+              <div class="input-currency">
+                <span>R$</span>
+                <input id="total-maquininha_credito" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="total-maquininha_sicredi">Sicredi</label>
+              <div class="input-currency">
+                <span>R$</span>
+                <input id="total-maquininha_sicredi" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Resumo do caixa -->
+          <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header"><h2>Resumo</h2></div>
+            <div class="totais-resumo">
+              <div class="totais-resumo-row">
+                <span>Total entradas</span>
+                <span style="color:var(--green);font-weight:700;" id="resumo-total-entradas-mov">—</span>
+              </div>
+              <div class="totais-resumo-row">
+                <span>Saídas / sangrias</span>
+                <span style="color:var(--red);font-weight:700;" id="resumo-saidas-mov">—</span>
+              </div>
+              <div class="totais-resumo-row">
+                <span>Dinheiro em caixa</span>
+                <span style="color:var(--blue);font-weight:700;" id="resumo-saldo-mov">—</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Lançamentos -->
+        <div>
+
+          <!-- Saídas / Sangrias -->
+          <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header">
+              <h2>Saídas & Sangrias</h2>
+            </div>
+
+            <div class="retirada-form-row" style="margin-bottom:.75rem;">
+              <select id="ret-categoria" class="select-input">
+                <option value="retirada">Retirada</option>
+                <option value="sangria">Sangria</option>
+                <option value="despesa">Despesa</option>
+                <option value="fornecedor">Fornecedor</option>
+                <option value="outro_saida">Outro</option>
+              </select>
+              <input id="ret-descricao" type="text" class="text-input" placeholder="Descrição" autocomplete="off" />
+              <div class="input-currency">
+                <span>R$</span>
+                <input id="ret-valor" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" onkeydown="if(event.key==='Enter') salvarRetirada()" />
+              </div>
+              <button id="btn-retirada" class="btn btn-primary" onclick="salvarRetirada()">Adicionar</button>
+              <button id="btn-cancelar-retirada" class="btn btn-outline" onclick="cancelarEdicaoRetirada()" style="display:none;">Cancelar</button>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Hora</th>
+                    <th>Descrição</th>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="ret-tbody">
+                  <tr class="tr-empty"><td colspan="5"><div class="empty-state"><p>Nenhuma saída registrada</p></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Vales de funcionários -->
+          <div class="card">
+            <div class="card-header">
+              <h2>Vales de Funcionários</h2>
+            </div>
+
+            <div class="retirada-form-row" style="margin-bottom:.75rem;">
+              <input id="vale-nome" type="text" class="text-input" placeholder="Nome do funcionário" autocomplete="off" />
+              <input id="vale-obs" type="text" class="text-input" placeholder="Motivo (opcional)" autocomplete="off" />
+              <div class="input-currency">
+                <span>R$</span>
+                <input id="vale-valor" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" onkeydown="if(event.key==='Enter') salvarVale()" />
+              </div>
+              <button id="btn-vale" class="btn btn-primary" onclick="salvarVale()">Lançar Vale</button>
+              <button id="btn-cancelar-vale" class="btn btn-outline" onclick="cancelarEdicaoVale()" style="display:none;">Cancelar</button>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Funcionário</th>
+                    <th>Observação</th>
+                    <th>Valor</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="vale-tbody">
+                  <tr class="tr-empty"><td colspan="4"><div class="empty-state"><p>Nenhum vale lançado</p></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ VIEW: FECHAMENTO ══ -->
+    <section id="view-fechamento" class="view">
+      <div class="fechamento-layout">
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-header"><h2>Resumo do Fechamento</h2></div>
+
+          <div class="fechamento-summary">
+            <div class="summary-row">
+              <span>Saldo inicial</span>
+              <span id="fech-saldo-inicial">R$ 0,00</span>
+            </div>
+            <div class="summary-divider"></div>
+
+            <div class="summary-section">
+              <h3>Entradas por forma de pagamento</h3>
+              <div class="summary-row">
+                <span>Dinheiro</span>
+                <span id="fech-dinheiro">R$ 0,00</span>
+              </div>
+              <div class="summary-row">
+                <span>PIX</span>
+                <span id="fech-pix">R$ 0,00</span>
+              </div>
+              <div class="summary-row">
+                <span>Débito</span>
+                <span id="fech-maquininha_debito">R$ 0,00</span>
+              </div>
+              <div class="summary-row">
+                <span>Crédito</span>
+                <span id="fech-maquininha_credito">R$ 0,00</span>
+              </div>
+              <div class="summary-row">
+                <span>Sicredi</span>
+                <span id="fech-maquininha_sicredi">R$ 0,00</span>
+              </div>
+            </div>
+            <div class="summary-divider"></div>
+
+            <div class="summary-row entrada">
+              <span>Total entradas</span>
+              <span id="fech-entradas">R$ 0,00</span>
+            </div>
+            <div class="summary-row saida">
+              <span>Sangrias</span>
+              <span id="fech-sangrias">R$ 0,00</span>
+            </div>
+            <div class="summary-row saida">
+              <span>Retiradas</span>
+              <span id="fech-retiradas">R$ 0,00</span>
+            </div>
+            <div class="summary-row saida">
+              <span>Vales funcionários</span>
+              <span id="fech-vale_funcionario">R$ 0,00</span>
+            </div>
+            <div class="summary-row saida">
+              <span>Total saídas</span>
+              <span id="fech-saidas">R$ 0,00</span>
+            </div>
+            <div class="summary-divider"></div>
+
+            <div class="summary-row total">
+              <span>Dinheiro em caixa</span>
+              <span id="fech-total">R$ 0,00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Retirada final e saldo próximo -->
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-header"><h2>Distribuição do Dinheiro</h2></div>
+
+          <div id="diff-alert-fech" class="diff-alert">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="diff-alert-msg"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="fech-retirada-final">Retirada final (valor retirado)</label>
+            <div class="input-currency">
+              <span>R$</span>
+              <input id="fech-retirada-final" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="calcularManualFechamento('retirada')" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="fech-saldo-proximo">Saldo para o próximo caixa (troco)</label>
+            <div class="input-currency">
+              <span>R$</span>
+              <input id="fech-saldo-proximo" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="calcularManualFechamento('saldo')" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="data-fechamento">Data de fechamento</label>
+            <input id="data-fechamento" type="date" class="text-input" />
+          </div>
+          <div class="form-group">
+            <label for="fech-obs">Observações</label>
+            <textarea id="fech-obs" class="textarea-input" placeholder="Observações do fechamento..."></textarea>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-outline" onclick="imprimirFechamento()">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Imprimir
+            </button>
+            <button class="btn btn-primary" onclick="showModal('modal-fechamento')" style="flex:1;">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              Fechar Caixa
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ VIEW: HISTÓRICO ══ -->
+    <section id="view-historico" class="view">
+
+      <div class="hist-tabs">
+        <button id="htab-fechamentos" class="hist-tab active" onclick="setHistTab('fechamentos')">Fechamentos</button>
+        <button id="htab-pordia" class="hist-tab" onclick="setHistTab('pordia')">Por Dia</button>
+      </div>
+
+      <div class="date-filter">
+        <label>De</label>
+        <input id="filtro-data-ini" type="date" oninput="filtrarHistorico()" />
+        <label>Até</label>
+        <input id="filtro-data-fim" type="date" oninput="filtrarHistorico()" />
+        <label>Turno</label>
+        <select id="filtro-turno" class="select-input" style="max-width:130px;" oninput="filtrarHistorico()">
+          <option value="">Todos</option>
+          <option value="manha">Manhã</option>
+          <option value="tarde">Tarde</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="limparFiltro()">Limpar</button>
+        <button class="btn btn-outline btn-sm" onclick="showModalExport()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+          Planilha
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioSangriasVales()">Sangrias/Vales</button>
+        <span id="filter-summary" class="filter-summary"></span>
+      </div>
+
+      <div id="hist-fechamentos" style="display:block;">
+        <div id="historico-list"></div>
+      </div>
+
+      <div id="hist-pordia" style="display:none;">
+        <div id="pordia-list"></div>
+      </div>
+
+    </section>
+
+  </div><!-- /main-content -->
+
+  <!-- ══ BOTTOM NAVIGATION (mobile) ══ -->
+  <nav class="bottom-nav">
+    <a id="bnav-dashboard" class="bottom-nav-item active" href="#" onclick="showView('dashboard');return false;">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Home</span>
+    </a>
+    <a id="bnav-abertura" class="bottom-nav-item" href="#" onclick="showView('abertura');return false;">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span>Abertura</span>
+    </a>
+    <a id="bnav-movimentos" class="bottom-nav-item" href="#" onclick="showView('movimentos');return false;">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      <span>Lançar</span>
+    </a>
+    <a id="bnav-fechamento" class="bottom-nav-item" href="#" onclick="showView('fechamento');return false;">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Fechar</span>
+    </a>
+    <a id="bnav-historico" class="bottom-nav-item" href="#" onclick="showView('historico');return false;">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Histórico</span>
+    </a>
+  </nav>
+
+  <!-- ══ MODAL: Confirmar Fechamento ══ -->
+  <div id="modal-fechamento" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-icon warning">
+        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <h2>Confirmar Fechamento</h2>
+      <p>Tem certeza que deseja fechar o caixa? O fechamento será salvo no histórico e no banco de dados.</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal('modal-fechamento')">Cancelar</button>
+        <button class="btn btn-primary" onclick="fecharCaixa()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODAL: Sem Caixa ══ -->
+  <div id="modal-sem-caixa" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-icon info">
+        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+      </div>
+      <h2>Nenhum caixa aberto</h2>
+      <p>Você precisa abrir um caixa antes de registrar movimentos ou fazer o fechamento.</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal('modal-sem-caixa')">Fechar</button>
+        <button class="btn btn-primary" onclick="closeModal('modal-sem-caixa');showView('abertura')">Abrir Caixa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODAL: Exportar Planilha ══ -->
+  <div id="modal-exportar" class="modal-overlay">
+    <div class="modal modal-export">
+      <div class="modal-export-header">
+        <div>
+          <h2>Exportar Planilha</h2>
+          <div id="export-info" class="export-info"></div>
+        </div>
+        <button class="btn-icon" onclick="closeModal('modal-exportar')" style="color:var(--text2);">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- Colunas -->
+      <div class="export-section">
+        <div class="export-section-header">
+          <span class="export-section-title">Colunas</span>
+          <div style="display:flex;gap:.4rem;">
+            <button class="btn btn-outline btn-sm" onclick="selecionarTodasColunas(true)">Marcar tudo</button>
+            <button class="btn btn-outline btn-sm" onclick="selecionarTodasColunas(false)">Limpar</button>
+          </div>
+        </div>
+        <div class="export-cols-grid" id="export-cols-grid"></div>
+      </div>
+
+      <!-- Abas extras (somente Excel) -->
+      <div class="export-section" id="export-extras-section">
+        <span class="export-section-title">Abas extras <small style="color:var(--text3);font-weight:400;">(somente Excel)</small></span>
+        <div class="export-extras">
+          <label class="export-col-item">
+            <input type="checkbox" id="export-inc-sangrias" />
+            <span>Sangrias</span>
+          </label>
+          <label class="export-col-item">
+            <input type="checkbox" id="export-inc-vales" />
+            <span>Vales de funcionários</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Formato -->
+      <div class="export-section">
+        <span class="export-section-title">Formato</span>
+        <div class="export-format-group">
+          <label class="export-format-option">
+            <input type="radio" name="export-fmt" value="xlsx" checked onchange="atualizarFormatoExport(this.value)" />
+            <div class="export-format-card">
+              <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+              <span>Excel</span>
+              <small>.xlsx</small>
+            </div>
+          </label>
+          <label class="export-format-option">
+            <input type="radio" name="export-fmt" value="csv" onchange="atualizarFormatoExport(this.value)" />
+            <div class="export-format-card">
+              <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+              <span>CSV</span>
+              <small>.csv</small>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1.25rem;">
+        <button class="btn btn-outline" onclick="closeModal('modal-exportar')">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarExportacao()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TOAST ══ -->
+  <div id="toast" class="toast"></div>
+
+  <!-- ══ ÁREA DE IMPRESSÃO ══ -->
+  <div id="print-area" style="display:none;">
+    <div id="print-content"></div>
+  </div>
+
+  <!-- SheetJS para exportação Excel -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
