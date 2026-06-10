@@ -1178,20 +1178,34 @@ function renderizarRetiradas() {
   const COR   = { retirada: "var(--amber)", sangria: "var(--red)", despesa: "var(--purple)", retirada_final: "var(--blue)" };
 
   const totais = { retirada: 0, sangria: 0, despesa: 0, retirada_final: 0 };
+  let totalExcesso = 0;
   const linhas = [];
 
   lista.forEach(item => {
-    const prefixo = `${escapeHTML(item.data)} · ${item.turno === "manha" ? "Manhã" : "Tarde"} · ${escapeHTML(item.operador || "—")}`;
+    const dinheiroCaixa = item.saldoFinal || 0;
 
     (item.listaSaidas || []).forEach(s => {
       const cat = s.categoria || "retirada";
       totais[cat] = (totais[cat] || 0) + (s.valor || 0);
-      linhas.push({ data: item.data, dataISO: item.dataISO, turno: item.turno, operador: item.operador, hora: s.hora || "—", categoria: cat, descricao: s.descricao || LABEL[cat] || cat, valor: s.valor || 0 });
+      linhas.push({
+        data: item.data, dataISO: item.dataISO, turno: item.turno, operador: item.operador,
+        hora: s.hora || "—", categoria: cat,
+        descricao: s.descricao || LABEL[cat] || cat,
+        valor: s.valor || 0, dinheiroCaixa: null, excesso: null
+      });
     });
 
     if (item.retiradaFinal > 0) {
       totais.retirada_final += item.retiradaFinal;
-      linhas.push({ data: item.data, dataISO: item.dataISO, turno: item.turno, operador: item.operador, hora: "Fechamento", categoria: "retirada_final", descricao: "Retirada Final", valor: item.retiradaFinal });
+      // Calcula excesso: retirada final > dinheiro em caixa
+      const excesso = item.retiradaFinal - dinheiroCaixa;
+      if (excesso > 0.009) totalExcesso += excesso;
+      linhas.push({
+        data: item.data, dataISO: item.dataISO, turno: item.turno, operador: item.operador,
+        hora: "Fechamento", categoria: "retirada_final",
+        descricao: "Retirada Final",
+        valor: item.retiradaFinal, dinheiroCaixa, excesso: excesso > 0.009 ? excesso : null
+      });
     }
   });
 
@@ -1200,7 +1214,6 @@ function renderizarRetiradas() {
     return;
   }
 
-  // Ordena por data desc
   linhas.sort((a, b) => (b.dataISO || b.data) > (a.dataISO || a.data) ? 1 : -1);
 
   const totalGeral = Object.values(totais).reduce((s, v) => s + v, 0);
@@ -1213,10 +1226,30 @@ function renderizarRetiradas() {
     </div>`
   ).join("");
 
+  const excessoCard = totalExcesso > 0 ? `
+    <div style="text-align:center;border-left:2px solid var(--red);padding-left:.75rem;">
+      <div style="font-size:.72rem;color:var(--red);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.04em;">Retirado a mais</div>
+      <div style="font-size:1rem;font-weight:800;color:var(--red);">${formatCurrency(totalExcesso)}</div>
+      <div style="font-size:.7rem;color:var(--text3);">acima do dinheiro</div>
+    </div>` : "";
+
   const rows = linhas.map(l => {
     const cor = COR[l.categoria] || "var(--text3)";
     const label = LABEL[l.categoria] || l.categoria;
-    return `<tr style="border-bottom:1px solid var(--border);">
+    const bgRow = l.excesso ? "background:rgba(239,68,68,.05);" : "";
+
+    let excessoCell = "";
+    if (l.categoria === "retirada_final" && l.dinheiroCaixa !== null) {
+      if (l.excesso) {
+        excessoCell = `<span style="color:var(--red);font-weight:700;">+${formatCurrency(l.excesso)} a mais</span>
+                       <div style="font-size:.72rem;color:var(--text3);">Caixa tinha ${formatCurrency(l.dinheiroCaixa)}</div>`;
+      } else {
+        excessoCell = `<span style="color:var(--green);font-size:.8rem;">OK</span>
+                       <div style="font-size:.72rem;color:var(--text3);">Caixa: ${formatCurrency(l.dinheiroCaixa)}</div>`;
+      }
+    }
+
+    return `<tr style="border-bottom:1px solid var(--border);${bgRow}">
       <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(l.data)}</td>
       <td style="padding:.55rem .75rem;font-size:.84rem;">${l.turno === "manha" ? "Manhã" : "Tarde"}</td>
       <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(l.operador || "—")}</td>
@@ -1226,18 +1259,20 @@ function renderizarRetiradas() {
       </td>
       <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(l.descricao)}</td>
       <td style="padding:.55rem .75rem;font-size:.84rem;text-align:right;font-weight:700;color:${cor};">${formatCurrency(l.valor)}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;text-align:right;">${excessoCell}</td>
     </tr>`;
   }).join("");
 
   cont.innerHTML = `
     <div class="card" style="margin-bottom:1rem;">
       <div class="card-header"><h2>Resumo do período</h2></div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:.75rem;padding:.25rem 1rem 1rem;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.75rem;padding:.25rem 1rem 1rem;">
         ${resumoCards}
         <div style="text-align:center;border-left:1px solid var(--border);padding-left:.75rem;">
           <div style="font-size:.72rem;color:var(--text3);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.04em;">Total Geral</div>
           <div style="font-size:1rem;font-weight:800;color:var(--text);">${formatCurrency(totalGeral)}</div>
         </div>
+        ${excessoCard}
       </div>
     </div>
     <div class="card">
@@ -1253,6 +1288,7 @@ function renderizarRetiradas() {
               <th style="text-align:left;${thStyle}">Tipo</th>
               <th style="text-align:left;${thStyle}">Descrição</th>
               <th style="text-align:right;${thStyle}">Valor</th>
+              <th style="text-align:right;${thStyle}">Vs. Caixa</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
