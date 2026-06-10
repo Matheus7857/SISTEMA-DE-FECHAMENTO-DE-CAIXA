@@ -32,10 +32,10 @@ let valeEditandoId = null;
 
 const PAGAMENTOS = {
   dinheiro: "Dinheiro",
-  pix: "PIX",
-  maquininha_debito: "Maquininha Debito",
-  maquininha_credito: "Maquininha Credito",
-  maquininha_sicredi: "Maquininha Sicredi"
+  credito: "Crédito",
+  debito: "Débito",
+  maquininha: "Maquininha",
+  pix: "PIX"
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -190,10 +190,10 @@ async function salvarEstado() {
 function restaurarCampos() {
   setValue("venda-bruta", totaisEntradas.vendaBruta || "");
   setValue("total-dinheiro", totaisEntradas.dinheiro || "");
+  setValue("total-credito", totaisEntradas.credito || "");
+  setValue("total-debito", totaisEntradas.debito || "");
+  setValue("total-maquininha", totaisEntradas.maquininha || "");
   setValue("total-pix", totaisEntradas.pix || "");
-  setValue("total-maquininha_debito", totaisEntradas.maquininha_debito || "");
-  setValue("total-maquininha_credito", totaisEntradas.maquininha_credito || "");
-  setValue("total-maquininha_sicredi", totaisEntradas.maquininha_sicredi || "");
   renderizarSaidas();
   renderizarVales();
 }
@@ -326,10 +326,10 @@ function salvarTotais() {
   totaisEntradas = {
     vendaBruta: num("venda-bruta"),
     dinheiro: num("total-dinheiro"),
-    pix: num("total-pix"),
-    maquininha_debito: num("total-maquininha_debito"),
-    maquininha_credito: num("total-maquininha_credito"),
-    maquininha_sicredi: num("total-maquininha_sicredi")
+    credito: num("total-credito"),
+    debito: num("total-debito"),
+    maquininha: num("total-maquininha"),
+    pix: num("total-pix")
   };
   salvarEstado();
   atualizarDashboard();
@@ -475,9 +475,9 @@ function calcularTotais() {
 
   const outrasEntradas =
     (totaisEntradas.pix || 0) +
-    (totaisEntradas.maquininha_debito || 0) +
-    (totaisEntradas.maquininha_credito || 0) +
-    (totaisEntradas.maquininha_sicredi || 0);
+    (totaisEntradas.debito || 0) +
+    (totaisEntradas.credito || 0) +
+    (totaisEntradas.maquininha || 0);
 
   const totalVales = vales.reduce((sum, item) => sum + item.valor, 0);
 
@@ -515,26 +515,28 @@ function atualizarDashboard() {
   setText("resumo-saidas-mov", formatCurrency(t.saidas));
   setText("resumo-saldo-mov", formatCurrency(t.saldoFinal));
   setText("pb-dinheiro", formatCurrency(pagamentosDashboard.dinheiro));
+  setText("pb-credito", formatCurrency(pagamentosDashboard.credito));
+  setText("pb-debito", formatCurrency(pagamentosDashboard.debito));
+  setText("pb-maquininha", formatCurrency(pagamentosDashboard.maquininha));
   setText("pb-pix", formatCurrency(pagamentosDashboard.pix));
-  setText("pb-maquininha_debito", formatCurrency(pagamentosDashboard.maquininha_debito));
-  setText("pb-maquininha_credito", formatCurrency(pagamentosDashboard.maquininha_credito));
   setText("pb-vale_funcionario", formatCurrency(pagamentosDashboard.vales));
   setText("pb-sangrias", formatCurrency(pagamentosDashboard.saidas));
 
   // Barra de progresso relativa nos pagamentos
   const maxPag = Math.max(
-    pagamentosDashboard.dinheiro, pagamentosDashboard.pix,
-    pagamentosDashboard.maquininha_debito, pagamentosDashboard.maquininha_credito,
-    pagamentosDashboard.vales, pagamentosDashboard.saidas, 1
+    pagamentosDashboard.dinheiro, pagamentosDashboard.credito,
+    pagamentosDashboard.debito, pagamentosDashboard.maquininha,
+    pagamentosDashboard.pix, pagamentosDashboard.vales, pagamentosDashboard.saidas, 1
   );
   const setPct = (id, val) => {
     const row = qs(id)?.closest(".payment-row");
     if (row) row.style.setProperty("--pct", (val / maxPag * 100).toFixed(1) + "%");
   };
   setPct("pb-dinheiro", pagamentosDashboard.dinheiro);
+  setPct("pb-credito", pagamentosDashboard.credito);
+  setPct("pb-debito", pagamentosDashboard.debito);
+  setPct("pb-maquininha", pagamentosDashboard.maquininha);
   setPct("pb-pix", pagamentosDashboard.pix);
-  setPct("pb-maquininha_debito", pagamentosDashboard.maquininha_debito);
-  setPct("pb-maquininha_credito", pagamentosDashboard.maquininha_credito);
   setPct("pb-vale_funcionario", pagamentosDashboard.vales);
   setPct("pb-sangrias", pagamentosDashboard.saidas);
 
@@ -553,7 +555,7 @@ function atualizarDashboard() {
     if (mes !== mesAtual) return;
     const p = item.porPagamento || {};
     vendasMes += item.vendaBruta || 0;
-    recebidoMes += (p.pix || 0) + (p.maquininha_debito || 0) + (p.maquininha_credito || 0) + (p.maquininha_sicredi || 0);
+    recebidoMes += (p.pix || 0) + (p.debito || 0) + (p.credito || 0) + (p.maquininha || 0);
     retiradasMes += (item.retiradas || 0) + (item.sangrias || 0) + (item.retiradaFinal || 0);
     gastosMes += calcularGastosLista([...(item.listaSaidas || []), ...(item.movimentos || [])]);
   });
@@ -603,9 +605,9 @@ function calcularPagamentosDashboard() {
   const totais = {
     dinheiro: 0,
     pix: 0,
-    maquininha_debito: 0,
-    maquininha_credito: 0,
-    maquininha_sicredi: 0,
+    debito: 0,
+    credito: 0,
+    maquininha: 0,
     vales: 0,
     saidas: 0
   };
@@ -617,9 +619,9 @@ function calcularPagamentosDashboard() {
     const p = item.porPagamento || {};
     totais.dinheiro += p.dinheiro || 0;
     totais.pix += p.pix || 0;
-    totais.maquininha_debito += p.maquininha_debito || 0;
-    totais.maquininha_credito += p.maquininha_credito || 0;
-    totais.maquininha_sicredi += p.maquininha_sicredi || 0;
+    totais.debito += p.debito || 0;
+    totais.credito += p.credito || 0;
+    totais.maquininha += p.maquininha || 0;
     totais.vales += item.vales || 0;
     totais.saidas += item.saidas || item.saídas || 0;
   });
@@ -628,9 +630,9 @@ function calcularPagamentosDashboard() {
     const atual = calcularTotais();
     totais.dinheiro += totaisEntradas.dinheiro || 0;
     totais.pix += totaisEntradas.pix || 0;
-    totais.maquininha_debito += totaisEntradas.maquininha_debito || 0;
-    totais.maquininha_credito += totaisEntradas.maquininha_credito || 0;
-    totais.maquininha_sicredi += totaisEntradas.maquininha_sicredi || 0;
+    totais.debito += totaisEntradas.debito || 0;
+    totais.credito += totaisEntradas.credito || 0;
+    totais.maquininha += totaisEntradas.maquininha || 0;
     totais.vales += atual.vales;
     totais.saidas += atual.saidas;
   }
@@ -763,10 +765,10 @@ function atualizarResumoFechamento() {
   setText("fech-saidas", formatCurrency(t.saidas));
   setText("fech-total", formatCurrency(t.saldoFinal));
   setText("fech-dinheiro", formatCurrency(totaisEntradas.dinheiro || 0));
+  setText("fech-credito", formatCurrency(totaisEntradas.credito || 0));
+  setText("fech-debito", formatCurrency(totaisEntradas.debito || 0));
+  setText("fech-maquininha", formatCurrency(totaisEntradas.maquininha || 0));
   setText("fech-pix", formatCurrency(totaisEntradas.pix || 0));
-  setText("fech-maquininha_debito", formatCurrency(totaisEntradas.maquininha_debito || 0));
-  setText("fech-maquininha_credito", formatCurrency(totaisEntradas.maquininha_credito || 0));
-  setText("fech-maquininha_sicredi", formatCurrency(totaisEntradas.maquininha_sicredi || 0));
   setText("fech-vale_funcionario", formatCurrency(t.vales));
   setText("fech-sangrias", formatCurrency(t.sangrias));
   setText("fech-retiradas", formatCurrency(t.retiradas));
@@ -1044,7 +1046,7 @@ function exportarHistorico() {
   const header = "Data,Turno,Operador,Venda Sistema,Dinheiro,Cartoes/Pix,Total Entradas,Sangrias,Retiradas,Vales,Saldo Final,Saldo Proximo\n";
   const rows = lista.map(item => {
     const p = item.porPagamento || {};
-    const cartoesPix = (p.pix || 0) + (p.maquininha_debito || 0) + (p.maquininha_credito || 0) + (p.maquininha_sicredi || 0);
+    const cartoesPix = (p.pix || 0) + (p.debito || 0) + (p.credito || 0) + (p.maquininha || 0);
     return [item.data, item.turno, item.operador, item.vendaBruta || 0, p.dinheiro || 0, cartoesPix, item.entradas || 0, item.sangrias || 0, (item.retiradas || 0) + (item.retiradaFinal || 0), item.vales || 0, item.saldoFinal || 0, item.saldoProximo || 0].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
   }).join("\n");
   const link = document.createElement("a");
@@ -1181,7 +1183,7 @@ function enviarWhatsApp(id) {
   const retiradas = listaSaidas.filter(saida => saida.categoria === "retirada");
   let texto = `*${item.data}*\nCaixa ${item.turno === "manha" ? "Manha" : "Tarde"}\n${item.operador || ""}\n\n`;
   texto += `*Venda: ${formatCurrency(item.vendaBruta || 0)}*\n\n`;
-  texto += `Dinheiro: ${formatCurrency(p.dinheiro || 0)}\nPIX: ${formatCurrency(p.pix || 0)}\nDebito: ${formatCurrency(p.maquininha_debito || 0)}\nCredito: ${formatCurrency(p.maquininha_credito || 0)}\nSicredi: ${formatCurrency(p.maquininha_sicredi || 0)}\n`;
+  texto += `Dinheiro: ${formatCurrency(p.dinheiro || 0)}\nCredito: ${formatCurrency(p.credito || 0)}\nDebito: ${formatCurrency(p.debito || 0)}\nMaquininha: ${formatCurrency(p.maquininha || 0)}\nPIX: ${formatCurrency(p.pix || 0)}\n`;
  if (item.listaVales?.length) {
   texto += `\n*Vales funcionários*\n`;
 
@@ -1453,10 +1455,10 @@ const EXPORT_COLUNAS = [
   { key: "operador",      label: "Operador",        getValue: i => i.operador || "" },
   { key: "vendaBruta",    label: "Venda Sistema",   getValue: i => i.vendaBruta || 0 },
   { key: "dinheiro",      label: "Dinheiro",        getValue: i => (i.porPagamento?.dinheiro) || 0 },
+  { key: "credito",       label: "Crédito",         getValue: i => (i.porPagamento?.credito) || 0 },
+  { key: "debito",        label: "Débito",          getValue: i => (i.porPagamento?.debito) || 0 },
+  { key: "maquininha",    label: "Maquininha",      getValue: i => (i.porPagamento?.maquininha) || 0 },
   { key: "pix",           label: "PIX",             getValue: i => (i.porPagamento?.pix) || 0 },
-  { key: "debito",        label: "Débito",          getValue: i => (i.porPagamento?.maquininha_debito) || 0 },
-  { key: "credito",       label: "Crédito",         getValue: i => (i.porPagamento?.maquininha_credito) || 0 },
-  { key: "sicredi",       label: "Sicredi",         getValue: i => (i.porPagamento?.maquininha_sicredi) || 0 },
   { key: "entradas",      label: "Total Entradas",  getValue: i => i.entradas || 0 },
   { key: "sangrias",      label: "Sangrias",        getValue: i => i.sangrias || 0 },
   { key: "retiradas",     label: "Retiradas",       getValue: i => i.retiradas || 0 },

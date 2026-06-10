@@ -288,6 +288,7 @@ body {
 .method-dot.pix { background: var(--blue); box-shadow: 0 0 6px rgba(59,130,246,.5); }
 .method-dot.debito { background: var(--purple); box-shadow: 0 0 6px rgba(168,85,247,.5); }
 .method-dot.credito { background: var(--amber); box-shadow: 0 0 6px rgba(245,158,11,.5); }
+.method-dot.maquininha { background: #06b6d4; box-shadow: 0 0 6px rgba(6,182,212,.5); }
 .method-dot.vale { background: var(--amber); }
 .method-dot.sangria { background: var(--red); box-shadow: 0 0 6px rgba(239,68,68,.5); }
 .payment-value { font-weight: 700; font-size: .875rem; color: var(--text); }

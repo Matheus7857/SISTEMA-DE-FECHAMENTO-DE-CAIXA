@@ -198,16 +198,20 @@
               <span class="payment-value" id="pb-dinheiro">R$ 0,00</span>
             </div>
             <div class="payment-row">
-              <span class="payment-method"><span class="method-dot pix"></span>PIX</span>
-              <span class="payment-value" id="pb-pix">R$ 0,00</span>
+              <span class="payment-method"><span class="method-dot credito"></span>Crédito</span>
+              <span class="payment-value" id="pb-credito">R$ 0,00</span>
             </div>
             <div class="payment-row">
               <span class="payment-method"><span class="method-dot debito"></span>Débito</span>
-              <span class="payment-value" id="pb-maquininha_debito">R$ 0,00</span>
+              <span class="payment-value" id="pb-debito">R$ 0,00</span>
             </div>
             <div class="payment-row">
-              <span class="payment-method"><span class="method-dot credito"></span>Crédito</span>
-              <span class="payment-value" id="pb-maquininha_credito">R$ 0,00</span>
+              <span class="payment-method"><span class="method-dot maquininha"></span>Maquininha</span>
+              <span class="payment-value" id="pb-maquininha">R$ 0,00</span>
+            </div>
+            <div class="payment-row">
+              <span class="payment-method"><span class="method-dot pix"></span>PIX</span>
+              <span class="payment-value" id="pb-pix">R$ 0,00</span>
             </div>
             <div class="payment-row">
               <span class="payment-method"><span class="method-dot vale"></span>Vales funcionários</span>
@@ -343,31 +347,31 @@
               </div>
             </div>
             <div class="form-group">
+              <label for="total-credito">Crédito</label>
+              <div class="input-currency">
+                <span>R$</span>
+                <input id="total-credito" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="total-debito">Débito</label>
+              <div class="input-currency">
+                <span>R$</span>
+                <input id="total-debito" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="total-maquininha">Maquininha</label>
+              <div class="input-currency">
+                <span>R$</span>
+                <input id="total-maquininha" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
+              </div>
+            </div>
+            <div class="form-group">
               <label for="total-pix">PIX</label>
               <div class="input-currency">
                 <span>R$</span>
                 <input id="total-pix" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="total-maquininha_debito">Débito</label>
-              <div class="input-currency">
-                <span>R$</span>
-                <input id="total-maquininha_debito" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="total-maquininha_credito">Crédito</label>
-              <div class="input-currency">
-                <span>R$</span>
-                <input id="total-maquininha_credito" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="total-maquininha_sicredi">Sicredi</label>
-              <div class="input-currency">
-                <span>R$</span>
-                <input id="total-maquininha_sicredi" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" oninput="salvarTotais()" />
               </div>
             </div>
           </div>
@@ -495,20 +499,20 @@
                 <span id="fech-dinheiro">R$ 0,00</span>
               </div>
               <div class="summary-row">
-                <span>PIX</span>
-                <span id="fech-pix">R$ 0,00</span>
+                <span>Crédito</span>
+                <span id="fech-credito">R$ 0,00</span>
               </div>
               <div class="summary-row">
                 <span>Débito</span>
-                <span id="fech-maquininha_debito">R$ 0,00</span>
+                <span id="fech-debito">R$ 0,00</span>
               </div>
               <div class="summary-row">
-                <span>Crédito</span>
-                <span id="fech-maquininha_credito">R$ 0,00</span>
+                <span>Maquininha</span>
+                <span id="fech-maquininha">R$ 0,00</span>
               </div>
               <div class="summary-row">
-                <span>Sicredi</span>
-                <span id="fech-maquininha_sicredi">R$ 0,00</span>
+                <span>PIX</span>
+                <span id="fech-pix">R$ 0,00</span>
               </div>
             </div>
             <div class="summary-divider"></div>
