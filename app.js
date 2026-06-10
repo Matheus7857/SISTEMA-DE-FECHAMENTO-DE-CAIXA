@@ -1057,42 +1057,69 @@ function renderizarQuebraSobra() {
   const cont = qs("quebra-list");
   if (!cont) return;
 
-  const lista = getHistoricoFiltrado();
-  if (!lista.length) {
-    cont.innerHTML = '<div class="empty-state large"><h3>Nenhum dado disponível</h3><p>Os fechamentos aparecerão aqui.</p></div>';
+  // Ordena cronologicamente pelo id (timestamp de fechamento)
+  const todos = [...historico].sort((a, b) => a.id - b.id);
+
+  // Aplica o filtro de data/turno ao turno sendo avaliado (o atual)
+  const filtrados = new Set(getHistoricoFiltrado().map(i => i.id));
+
+  const linhas = [];
+  let totalSobra  = 0;
+  let totalQuebra = 0;
+
+  for (let i = 1; i < todos.length; i++) {
+    const anterior = todos[i - 1];
+    const atual    = todos[i];
+
+    // Só mostra se o turno atual passou no filtro
+    if (!filtrados.has(atual.id)) continue;
+
+    // saldoProximo = o que o turno anterior deixou para o próximo
+    const esperado  = anterior.saldoProximo;
+    const declarado = atual.saldoInicial || 0;
+
+    // Se o turno anterior não informou saldo próximo, não há como calcular
+    if (esperado == null) {
+      linhas.push({ atual, anterior, esperado: null, declarado, dif: null });
+      continue;
+    }
+
+    const dif = declarado - esperado;
+    if (dif > 0.009)  totalSobra  += dif;
+    if (dif < -0.009) totalQuebra += Math.abs(dif);
+    linhas.push({ atual, anterior, esperado, declarado, dif });
+  }
+
+  if (!linhas.length) {
+    cont.innerHTML = '<div class="empty-state large"><h3>Nenhuma abertura para comparar</h3><p>São necessários pelo menos 2 fechamentos consecutivos com saldo informado.</p></div>';
     return;
   }
 
-  let totalSobra = 0;
-  let totalQuebra = 0;
+  const saldoLiq = totalSobra - totalQuebra;
+  const corSaldo = saldoLiq >= 0 ? "var(--green)" : "var(--red)";
 
-  const rows = lista.map(item => {
-    const entradas   = item.entradas   || 0;
-    const vendaBruta = item.vendaBruta || 0;
-    const semVenda   = !vendaBruta;
-    const dif        = semVenda ? 0 : entradas - vendaBruta;
-    if (dif > 0) totalSobra  += dif;
-    if (dif < 0) totalQuebra += Math.abs(dif);
-    const cor   = dif > 0 ? "var(--green)" : dif < 0 ? "var(--red)" : "var(--text3)";
-    const badge = dif > 0 ? `<span style="font-size:.7rem;color:var(--green)">▲ A mais</span>`
-                : dif < 0 ? `<span style="font-size:.7rem;color:var(--red)">▼ Quebra</span>`
-                :            `<span style="font-size:.7rem;color:var(--text3)">Zerado</span>`;
-    const difCell = semVenda
-      ? `<span style="color:var(--text3);font-size:.8rem;">Sem venda sistema</span>`
-      : `<span style="font-weight:700;color:${cor};">${formatCurrency(Math.abs(dif))}</span> ${badge}`;
+  const thStyle = `padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;white-space:nowrap;`;
 
+  const rows = linhas.map(({ atual, anterior, esperado, declarado, dif }) => {
+    let difCell;
+    if (esperado == null) {
+      difCell = `<span style="color:var(--text3);font-size:.8rem;">Sem saldo próximo</span>`;
+    } else {
+      const cor   = dif >  0.009 ? "var(--green)" : dif < -0.009 ? "var(--red)" : "var(--text3)";
+      const label = dif >  0.009 ? "▲ A mais"     : dif < -0.009 ? "▼ Quebra"   : "Zerado";
+      difCell = `<span style="font-weight:800;color:${cor};">${formatCurrency(Math.abs(dif))}</span>
+                 <span style="font-size:.72rem;color:${cor};margin-left:.3rem;">${label}</span>`;
+    }
     return `<tr style="border-bottom:1px solid var(--border);">
-      <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(item.data)}</td>
-      <td style="padding:.55rem .75rem;font-size:.84rem;">${item.turno === "manha" ? "Manhã" : "Tarde"}</td>
-      <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(item.operador || "—")}</td>
-      <td style="padding:.55rem .75rem;font-size:.84rem;text-align:right;">${semVenda ? '<span style="color:var(--text3)">—</span>' : formatCurrency(vendaBruta)}</td>
-      <td style="padding:.55rem .75rem;font-size:.84rem;text-align:right;">${formatCurrency(entradas)}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(atual.data)}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;">${atual.turno === "manha" ? "Manhã" : "Tarde"}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(atual.operador || "—")}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;color:var(--text3);">${escapeHTML(anterior.data)} · ${anterior.turno === "manha" ? "M" : "T"}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;text-align:right;">${esperado != null ? formatCurrency(esperado) : '<span style="color:var(--text3)">—</span>'}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;text-align:right;">${formatCurrency(declarado)}</td>
       <td style="padding:.55rem .75rem;font-size:.84rem;text-align:right;">${difCell}</td>
     </tr>`;
   }).join("");
-
-  const saldoLiq = totalSobra - totalQuebra;
-  const corSaldo = saldoLiq >= 0 ? "var(--green)" : "var(--red)";
 
   cont.innerHTML = `
     <div class="card" style="margin-bottom:1rem;">
@@ -1113,17 +1140,18 @@ function renderizarQuebraSobra() {
       </div>
     </div>
     <div class="card">
-      <div class="card-header"><h2>Detalhamento por fechamento</h2></div>
+      <div class="card-header"><h2>Quebra de Abertura por Turno</h2></div>
       <div style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;">
           <thead>
             <tr style="border-bottom:2px solid var(--border);">
-              <th style="text-align:left;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Data</th>
-              <th style="text-align:left;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Turno</th>
-              <th style="text-align:left;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Operador</th>
-              <th style="text-align:right;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Venda Sistema</th>
-              <th style="text-align:right;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Total Contado</th>
-              <th style="text-align:right;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Diferença</th>
+              <th style="text-align:left;${thStyle}">Data Abertura</th>
+              <th style="text-align:left;${thStyle}">Turno</th>
+              <th style="text-align:left;${thStyle}">Operador</th>
+              <th style="text-align:left;${thStyle}">Turno Anterior</th>
+              <th style="text-align:right;${thStyle}">Saldo Esperado</th>
+              <th style="text-align:right;${thStyle}">Saldo Declarado</th>
+              <th style="text-align:right;${thStyle}">Diferença</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
