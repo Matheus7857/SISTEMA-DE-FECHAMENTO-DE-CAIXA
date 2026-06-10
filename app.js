@@ -938,7 +938,8 @@ function filtrarHistorico() {
   const total = filtrado.reduce((sum, item) => sum + (item.saldoFinal || 0), 0);
   setText("filter-summary", filtrado.length ? `${filtrado.length} resultado(s) - Total: ${formatCurrency(total)}` : "Nenhum resultado");
   renderizarHistorico(filtrado);
-  if (qs("hist-quebra")?.style.display !== "none") renderizarQuebraSobra();
+  if (qs("hist-quebra")?.style.display    !== "none") renderizarQuebraSobra();
+  if (qs("hist-retiradas")?.style.display !== "none") renderizarRetiradas();
 }
 
 function limparFiltro() {
@@ -1043,14 +1044,17 @@ function renderizarPorDia() {
 }
 
 function setHistTab(tab) {
-  qs("hist-fechamentos").style.display = tab === "fechamentos" ? "block" : "none";
-  qs("hist-pordia").style.display      = tab === "pordia"      ? "block" : "none";
-  qs("hist-quebra").style.display      = tab === "quebra"      ? "block" : "none";
+  qs("hist-fechamentos").style.display  = tab === "fechamentos" ? "block" : "none";
+  qs("hist-pordia").style.display       = tab === "pordia"      ? "block" : "none";
+  qs("hist-quebra").style.display       = tab === "quebra"      ? "block" : "none";
+  qs("hist-retiradas").style.display    = tab === "retiradas"   ? "block" : "none";
   qs("htab-fechamentos")?.classList.toggle("active", tab === "fechamentos");
   qs("htab-pordia")?.classList.toggle("active", tab === "pordia");
   qs("htab-quebra")?.classList.toggle("active", tab === "quebra");
-  if (tab === "pordia") renderizarPorDia();
-  if (tab === "quebra") renderizarQuebraSobra();
+  qs("htab-retiradas")?.classList.toggle("active", tab === "retiradas");
+  if (tab === "pordia")    renderizarPorDia();
+  if (tab === "quebra")    renderizarQuebraSobra();
+  if (tab === "retiradas") renderizarRetiradas();
 }
 
 function renderizarQuebraSobra() {
@@ -1152,6 +1156,103 @@ function renderizarQuebraSobra() {
               <th style="text-align:right;${thStyle}">Saldo Esperado</th>
               <th style="text-align:right;${thStyle}">Saldo Declarado</th>
               <th style="text-align:right;${thStyle}">Diferença</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function renderizarRetiradas() {
+  const cont = qs("retiradas-list");
+  if (!cont) return;
+
+  const lista = getHistoricoFiltrado();
+  if (!lista.length) {
+    cont.innerHTML = '<div class="empty-state large"><h3>Nenhum dado disponível</h3><p>Os fechamentos aparecerão aqui.</p></div>';
+    return;
+  }
+
+  const LABEL = { retirada: "Retirada", sangria: "Sangria", despesa: "Despesa", retirada_final: "Retirada Final" };
+  const COR   = { retirada: "var(--amber)", sangria: "var(--red)", despesa: "var(--purple)", retirada_final: "var(--blue)" };
+
+  const totais = { retirada: 0, sangria: 0, despesa: 0, retirada_final: 0 };
+  const linhas = [];
+
+  lista.forEach(item => {
+    const prefixo = `${escapeHTML(item.data)} · ${item.turno === "manha" ? "Manhã" : "Tarde"} · ${escapeHTML(item.operador || "—")}`;
+
+    (item.listaSaidas || []).forEach(s => {
+      const cat = s.categoria || "retirada";
+      totais[cat] = (totais[cat] || 0) + (s.valor || 0);
+      linhas.push({ data: item.data, dataISO: item.dataISO, turno: item.turno, operador: item.operador, hora: s.hora || "—", categoria: cat, descricao: s.descricao || LABEL[cat] || cat, valor: s.valor || 0 });
+    });
+
+    if (item.retiradaFinal > 0) {
+      totais.retirada_final += item.retiradaFinal;
+      linhas.push({ data: item.data, dataISO: item.dataISO, turno: item.turno, operador: item.operador, hora: "Fechamento", categoria: "retirada_final", descricao: "Retirada Final", valor: item.retiradaFinal });
+    }
+  });
+
+  if (!linhas.length) {
+    cont.innerHTML = '<div class="empty-state large"><h3>Nenhuma retirada no período</h3></div>';
+    return;
+  }
+
+  // Ordena por data desc
+  linhas.sort((a, b) => (b.dataISO || b.data) > (a.dataISO || a.data) ? 1 : -1);
+
+  const totalGeral = Object.values(totais).reduce((s, v) => s + v, 0);
+  const thStyle = `padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;white-space:nowrap;`;
+
+  const resumoCards = Object.entries(LABEL).filter(([k]) => totais[k] > 0).map(([cat, label]) =>
+    `<div style="text-align:center;">
+      <div style="font-size:.72rem;color:var(--text3);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.04em;">${label}s</div>
+      <div style="font-size:1rem;font-weight:800;color:${COR[cat]};">${formatCurrency(totais[cat])}</div>
+    </div>`
+  ).join("");
+
+  const rows = linhas.map(l => {
+    const cor = COR[l.categoria] || "var(--text3)";
+    const label = LABEL[l.categoria] || l.categoria;
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(l.data)}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;">${l.turno === "manha" ? "Manhã" : "Tarde"}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(l.operador || "—")}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;color:var(--text3);">${escapeHTML(l.hora)}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;">
+        <span style="background:${cor}22;color:${cor};padding:.15rem .5rem;border-radius:4px;font-size:.75rem;font-weight:700;">${label}</span>
+      </td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(l.descricao)}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;text-align:right;font-weight:700;color:${cor};">${formatCurrency(l.valor)}</td>
+    </tr>`;
+  }).join("");
+
+  cont.innerHTML = `
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-header"><h2>Resumo do período</h2></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:.75rem;padding:.25rem 1rem 1rem;">
+        ${resumoCards}
+        <div style="text-align:center;border-left:1px solid var(--border);padding-left:.75rem;">
+          <div style="font-size:.72rem;color:var(--text3);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.04em;">Total Geral</div>
+          <div style="font-size:1rem;font-weight:800;color:var(--text);">${formatCurrency(totalGeral)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Detalhamento</h2></div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border);">
+              <th style="text-align:left;${thStyle}">Data</th>
+              <th style="text-align:left;${thStyle}">Turno</th>
+              <th style="text-align:left;${thStyle}">Operador</th>
+              <th style="text-align:left;${thStyle}">Hora</th>
+              <th style="text-align:left;${thStyle}">Tipo</th>
+              <th style="text-align:left;${thStyle}">Descrição</th>
+              <th style="text-align:right;${thStyle}">Valor</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
