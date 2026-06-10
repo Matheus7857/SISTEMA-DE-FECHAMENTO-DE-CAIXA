@@ -938,6 +938,7 @@ function filtrarHistorico() {
   const total = filtrado.reduce((sum, item) => sum + (item.saldoFinal || 0), 0);
   setText("filter-summary", filtrado.length ? `${filtrado.length} resultado(s) - Total: ${formatCurrency(total)}` : "Nenhum resultado");
   renderizarHistorico(filtrado);
+  if (qs("hist-quebra")?.style.display !== "none") renderizarQuebraSobra();
 }
 
 function limparFiltro() {
@@ -1043,10 +1044,92 @@ function renderizarPorDia() {
 
 function setHistTab(tab) {
   qs("hist-fechamentos").style.display = tab === "fechamentos" ? "block" : "none";
-  qs("hist-pordia").style.display = tab === "pordia" ? "block" : "none";
+  qs("hist-pordia").style.display      = tab === "pordia"      ? "block" : "none";
+  qs("hist-quebra").style.display      = tab === "quebra"      ? "block" : "none";
   qs("htab-fechamentos")?.classList.toggle("active", tab === "fechamentos");
   qs("htab-pordia")?.classList.toggle("active", tab === "pordia");
+  qs("htab-quebra")?.classList.toggle("active", tab === "quebra");
   if (tab === "pordia") renderizarPorDia();
+  if (tab === "quebra") renderizarQuebraSobra();
+}
+
+function renderizarQuebraSobra() {
+  const cont = qs("quebra-list");
+  if (!cont) return;
+
+  const lista = getHistoricoFiltrado();
+  if (!lista.length) {
+    cont.innerHTML = '<div class="empty-state large"><h3>Nenhum dado disponível</h3><p>Os fechamentos aparecerão aqui.</p></div>';
+    return;
+  }
+
+  let totalSobra = 0;
+  let totalQuebra = 0;
+
+  const rows = lista.map(item => {
+    const entradas   = item.entradas   || 0;
+    const vendaBruta = item.vendaBruta || 0;
+    const semVenda   = !vendaBruta;
+    const dif        = semVenda ? 0 : entradas - vendaBruta;
+    if (dif > 0) totalSobra  += dif;
+    if (dif < 0) totalQuebra += Math.abs(dif);
+    const cor   = dif > 0 ? "var(--green)" : dif < 0 ? "var(--red)" : "var(--text3)";
+    const badge = dif > 0 ? `<span style="font-size:.7rem;color:var(--green)">▲ A mais</span>`
+                : dif < 0 ? `<span style="font-size:.7rem;color:var(--red)">▼ Quebra</span>`
+                :            `<span style="font-size:.7rem;color:var(--text3)">Zerado</span>`;
+    const difCell = semVenda
+      ? `<span style="color:var(--text3);font-size:.8rem;">Sem venda sistema</span>`
+      : `<span style="font-weight:700;color:${cor};">${formatCurrency(Math.abs(dif))}</span> ${badge}`;
+
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(item.data)}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;">${item.turno === "manha" ? "Manhã" : "Tarde"}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;">${escapeHTML(item.operador || "—")}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;text-align:right;">${semVenda ? '<span style="color:var(--text3)">—</span>' : formatCurrency(vendaBruta)}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;text-align:right;">${formatCurrency(entradas)}</td>
+      <td style="padding:.55rem .75rem;font-size:.84rem;text-align:right;">${difCell}</td>
+    </tr>`;
+  }).join("");
+
+  const saldoLiq = totalSobra - totalQuebra;
+  const corSaldo = saldoLiq >= 0 ? "var(--green)" : "var(--red)";
+
+  cont.innerHTML = `
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-header"><h2>Resumo do período</h2></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;padding:.25rem 1rem 1rem;">
+        <div style="text-align:center;">
+          <div style="font-size:.72rem;color:var(--text3);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.04em;">Total A Mais</div>
+          <div style="font-size:1.1rem;font-weight:800;color:var(--green);">${formatCurrency(totalSobra)}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:.72rem;color:var(--text3);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.04em;">Total Quebra</div>
+          <div style="font-size:1.1rem;font-weight:800;color:var(--red);">${formatCurrency(totalQuebra)}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:.72rem;color:var(--text3);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.04em;">Saldo Líquido</div>
+          <div style="font-size:1.1rem;font-weight:800;color:${corSaldo};">${saldoLiq >= 0 ? "+" : "−"}${formatCurrency(Math.abs(saldoLiq))}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Detalhamento por fechamento</h2></div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border);">
+              <th style="text-align:left;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Data</th>
+              <th style="text-align:left;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Turno</th>
+              <th style="text-align:left;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Operador</th>
+              <th style="text-align:right;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Venda Sistema</th>
+              <th style="text-align:right;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Total Contado</th>
+              <th style="text-align:right;padding:.5rem .75rem;font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;">Diferença</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 function exportarHistorico() {
